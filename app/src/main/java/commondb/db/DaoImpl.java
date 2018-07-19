@@ -1,6 +1,4 @@
-/*
- * Copyright (C) 2017 贵阳货车帮科技有限公司
- */
+
 
 package commondb.db;
 
@@ -15,6 +13,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+
+import static commondb.db.DefaultDao.sHelper;
 
 public class DaoImpl<T> implements Dao<T> {
 
@@ -350,11 +350,57 @@ public class DaoImpl<T> implements Dao<T> {
         SQLiteDatabase db = sDBHelper.getWritableDatabase();
         db.execSQL("PRAGMA cache_size=12000;");
         db.beginTransaction();
-        // 批量插入数据
-        for (int i = 0; i < dataList.size(); i++) {
+        boolean savesuc = false;
+        try {
+            // 批量插入数据
+            for (int m = 0; m < dataList.size(); m++) {
 
+                T bean = dataList.get(m);
+
+                try {
+                    Field uuidField = bean.getClass().getSuperclass().getDeclaredField("uuid");
+                    uuidField.setAccessible(true);
+                    String uuid = java.util.UUID.randomUUID().toString();
+                    ContentValues values = new ContentValues();
+                    values.put(uuidField.getName(), uuid);
+                    // 获取子类属性及值
+                    Field[] subclass = bean.getClass().getDeclaredFields();
+                    for (int i = 0; i < subclass.length; i++) {
+                        Field valField = subclass[i];
+                        valField.setAccessible(true);
+                        String valFieldType = valField.getType().toString();
+                        if ("class java.lang.String".equals(valFieldType)) {
+                            values.put(valField.getName(), (String) valField.get(bean));
+                        } else if ("long".equals(valFieldType) || "Long".equals(valFieldType)) {
+                            values.put(valField.getName(), (Long) valField.get(bean));
+                        } else if ("int".equals(valFieldType) || "Int".equals(valFieldType)) {
+                            values.put(valField.getName(), (Integer) valField.get(bean));
+                        } else if ("double".equals(valFieldType) || "Double".equals(valFieldType)) {
+                            values.put(valField.getName(), (Double) valField.get(bean));
+                        }
+                        // 需要其他类型在此加入
+                    }
+                    if (values != null) {
+                        db.insert(bean.getClass().getSimpleName(), null, values);
+
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    return 0 ;
+                }
+
+            }
+            db.setTransactionSuccessful(); // 设置事务处理成功，
+        } catch (Exception e) {
+            e.printStackTrace();
+            return 0 ;
+        } finally {
+            if (db != null && db.isOpen()) {
+                db.close();
+                db = null;
+            }
+            db.endTransaction(); // 处理完成
         }
-
-        return 0;
+        return dataList.size();
     }
 }

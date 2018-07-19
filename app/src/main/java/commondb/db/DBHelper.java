@@ -1,6 +1,4 @@
-/*
- * Copyright (C) 2017 贵阳货车帮科技有限公司
- */
+
 
 package commondb.db;
 
